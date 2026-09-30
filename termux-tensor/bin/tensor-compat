@@ -1,0 +1,38 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$ROOT/tensor-env" ] && . "$ROOT/tensor-env"
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
+MODEL_DIR="${TENSOR_MODEL_DIR:-$HOME_DIR/models}"
+STATE="$HOME_DIR/tensor/state/current-model"
+RAM_FACTOR="${TENSOR_MODEL_RAM_FACTOR:-1.5}"
+MIN_FREE_RAM_MB="${TENSOR_MIN_FREE_RAM_MB:-1024}"
+STORAGE_FACTOR="${TENSOR_MODEL_STORAGE_FACTOR:-1.2}"
+resolve(){ local q="${1:-}" f=""; [ -f "$q" ] && { printf '%s\n' "$q"; return 0; }; f="$(find "$MODEL_DIR" -maxdepth 2 -type f \( -name "$q" -o -name "$q.litertlm" -o -name "$q.gguf" \) | head -n1)"; [ -n "$f" ] && printf '%s\n' "$f"; }
+check(){
+ local f="$1" ext runtime size ram disk reqram reqdisk errors=0 warns=0 rec
+ [ -f "$f" ] || { echo "ERROR: model not found: $f" >&2; return 2; }
+ case "$f" in *.litertlm) ext=litertlm; runtime="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"; rec="LiteRT-LM direct";; *.gguf) ext=gguf; runtime="${TENSOR_SERVER_BIN:-$(command -v llama-server 2>/dev/null || true)}"; rec="llama.cpp server";; *) echo "Status: blocked"; echo "Reason: unsupported format"; return 2;; esac
+ size="$(wc -c < "$f" | tr -d ' ')"
+ ram="$(awk '/MemAvailable/ {printf "%.0f",$2/1024; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+ disk="$(df -Pk "$f" | awk 'NR==2 {print $4}')"
+ reqram="$(awk -v s="$size" -v x="$RAM_FACTOR" 'BEGIN{printf "%.0f",s*x/1048576}')"
+ reqdisk="$(awk -v s="$size" -v x="$STORAGE_FACTOR" 'BEGIN{printf "%.0f",s*x/1024}')"
+ echo "Model: $f"; echo "Format: $ext"; echo "Size: $(awk -v s="$size" 'BEGIN{printf "%.0f MB",s/1048576}')"; printf 'SHA256: '; sha256sum "$f" | awk '{print $1}'
+ echo "Available RAM: ${ram:-0} MB"; echo "Heuristic RAM requirement: $reqram MB (file size × $RAM_FACTOR)"
+ echo "Available storage: ${disk:-0} KB"; echo "Heuristic storage requirement: $reqdisk KB"; echo "Runtime: ${runtime:-not-found}"; echo "Recommendation: $rec"
+ [ "$(uname -m)" = aarch64 ] || { echo "WARN: ARM64/aarch64 required"; errors=$((errors+1)); }
+ [ -n "$runtime" ] || { echo "WARN: required runtime not found"; errors=$((errors+1)); }
+ [ "${ram:-0}" -ge "$MIN_FREE_RAM_MB" ] || { echo "WARN: available RAM below $MIN_FREE_RAM_MB MB"; warns=$((warns+1)); }
+ [ "${ram:-0}" -ge "$reqram" ] || { echo "WARN: available RAM below conservative heuristic; actual runtime use varies"; warns=$((warns+1)); }
+ [ "${disk:-0}" -ge "$reqdisk" ] || { echo "WARN: insufficient storage safety margin"; errors=$((errors+1)); }
+ [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$f" ] && echo "Selected: yes" || true
+ if [ "$errors" -gt 0 ]; then echo "Status: blocked"; return 2; fi
+ if [ "$warns" -gt 0 ]; then echo "Status: warning"; return 1; fi
+ echo "Status: compatible"; return 0
+}
+case "${1:-check}" in
+ check) f="$(resolve "${2:-}")" || { echo "Usage: tensor compat check <model>" >&2; exit 2; }; check "$f";;
+ auto) while IFS= read -r f; do check "$f" >/dev/null 2>&1 && { echo "$f"; exit 0; }; done < <(find "$MODEL_DIR" -maxdepth 2 -type f \( -name '*.litertlm' -o -name '*.gguf' \) -print | sort); echo "No compatible model found" >&2; exit 2;;
+ *) echo "Usage: tensor compat check <model>|auto"; exit 2;;
+esac
