@@ -1,0 +1,19 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
+BIN_LM="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"
+BIN_SERVER="${TENSOR_SERVER_BIN:-$(command -v llama-server 2>/dev/null || true)}"
+case "${1:-status}" in
+ status)
+   echo "=== Tensor Runtime Probe ==="
+   echo "Architecture: $(uname -m)"
+   if [ -n "$BIN_LM" ]; then echo "LiteRT-LM: $BIN_LM"; "$BIN_LM" --help 2>&1 | head -n 3; else echo "LiteRT-LM: not found"; fi
+   if [ -n "$BIN_SERVER" ]; then echo "llama-server: $BIN_SERVER"; "$BIN_SERVER" --version 2>&1 | head -n 2 || true; else echo "llama-server: not found"; fi
+   ;;
+ json)
+   printf '{"arch":"%s","litert_lm":"%s","llama_server":"%s"}
+' "$(uname -m)" "$BIN_LM" "$BIN_SERVER"
+   ;;
+ *) echo "Usage: tensor runtime status|json"; exit 2;;
+esac
