@@ -1,62 +1,26 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -u
-echo "=== Hermes Tensor / Termux Doctor ==="
-getprop_safe() { command -v getprop >/dev/null 2>&1 && getprop "$1" 2>/dev/null | head -n 1 || true; }
-echo "[System]"
-echo "Android:     $(getprop_safe ro.build.version.release)"
-echo "API:         $(getprop_safe ro.build.version.sdk)"
-echo "ABI:         $(getprop_safe ro.product.cpu.abi)"
-echo "SoC vendor:  $(getprop_safe ro.soc.manufacturer)"
-echo "SoC model:   $(getprop_safe ro.soc.model)"
-echo "Device:      $(getprop_safe ro.product.device)"
-echo "Model:       $(getprop_safe ro.product.model)"
-echo "Kernel:      $(uname -a)"
-echo
-echo "[Termux]"
-echo "PREFIX:      ${PREFIX:-unknown}"
-echo "HOME:        ${HOME:-unknown}"
-echo "Arch:        $(uname -m)"
-echo "Termux:API:  $(command -v termux-battery-status >/dev/null 2>&1 && echo yes || echo no)"
-echo
-echo "[CPU]"
-command -v nproc >/dev/null 2>&1 && echo "Threads:     $(nproc)"
-[ -r /proc/cpuinfo ] && grep -m 8 -E '^(processor|model name|Hardware|Features)' /proc/cpuinfo 2>/dev/null || true
-echo
-echo "[Memory]"
-command -v free >/dev/null 2>&1 && free -h || grep -E '^(MemTotal|MemAvailable):' /proc/meminfo 2>/dev/null
-echo
-echo "[Hermes]"
-if command -v hermes >/dev/null 2>&1; then
-  echo "Path:        $(command -v hermes)"
-  hermes --version 2>&1 | head -n 2
-else
-  echo "NOT FOUND"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"; MODEL_DIR="${TENSOR_MODEL_DIR:-$HOME_DIR/models}"
+errors=0; warns=0; json=0
+[ "${1:-}" = "--json" ] && json=1
+check(){ command -v "$1" >/dev/null 2>&1 || { echo "WARN: missing command: $1"; warns=$((warns+1)); }; }
+if [ "$json" -eq 0 ]; then echo "=== Hermes Tensor / Termux Doctor ==="; fi
+for c in bash curl git hermes; do check "$c"; done
+for c in litert_lm_main llama-server; do command -v "$c" >/dev/null 2>&1 && echo "OK: $c -> $(command -v "$c")" || true; done
+[ "$(uname -m)" = "aarch64" ] || { echo "ERROR: ARM64/aarch64 required; got $(uname -m)"; errors=$((errors+1)); }
+[ -d "$MODEL_DIR" ] || { echo "WARN: model directory missing: $MODEL_DIR"; warns=$((warns+1)); }
+if [ -f "$HOME_DIR/tensor/state/current-model" ]; then
+  M="$(cat "$HOME_DIR/tensor/state/current-model")"; [ -f "$M" ] || { echo "ERROR: selected model missing: $M"; errors=$((errors+1)); }
+  case "$M" in *.litertlm|*.gguf) ;; *) echo "ERROR: unsupported selected model format"; errors=$((errors+1));; esac
 fi
-echo
-echo "[Local runtimes]"
-if command -v litert-lm >/dev/null 2>&1; then
-  echo "LiteRT-LM:   $(command -v litert-lm)"
-  litert-lm --version 2>&1 | head -n 2
-else echo "LiteRT-LM:   not installed"; fi
-for candidate in llama-server llama-cli; do
-  command -v "$candidate" >/dev/null 2>&1 && echo "$candidate: $(command -v "$candidate")"
-done
-MODEL_DIR="${HERMES_LOCAL_MODEL_DIR:-$HOME/.hermes/models}"
-echo
-echo "[Models]"
-echo "Directory:   $MODEL_DIR"
-if [ -d "$MODEL_DIR" ]; then
-  find "$MODEL_DIR" -maxdepth 3 -type f \( -name '*.litertlm' -o -name '*.gguf' \) -print 2>/dev/null | head -n 20
-else echo "Directory does not exist yet."; fi
-echo
-echo "[Thermal]"
-if [ -r /sys/class/thermal/thermal_zone0/temp ]; then
-  raw=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0)
-  case "$raw" in
-    ''|*[!0-9]*) echo "unavailable" ;;
-    *) awk "BEGIN {printf \"zone0:       %.1f C\\n\", $raw/1000}" ;;
-  esac
-else echo "unavailable"; fi
-command -v termux-battery-status >/dev/null 2>&1 && { echo; echo "[Battery]"; termux-battery-status 2>/dev/null || true; }
-echo
-echo "=== End ==="
+if command -v curl >/dev/null 2>&1; then
+  curl -fsS --max-time 1 "http://${TENSOR_HOST:-127.0.0.1}:${TENSOR_PORT:-9379}/v1/models" >/dev/null 2>&1 && echo "OK: local inference endpoint reachable" || true
+fi
+[ -r /proc/meminfo ] && awk '/MemTotal/ {printf "Memory: %.0f MB\n",$2/1024}' /proc/meminfo
+[ -r /sys/class/thermal/thermal_zone0/temp ] && awk '{printf "Thermal zone0: %.1f C\n",$1/1000}' /sys/class/thermal/thermal_zone0/temp
+if [ "$json" -eq 0 ]; then echo "Result: errors=$errors warnings=$warns"; fi
+[ "$errors" -gt 0 ] && exit 2
+[ "$warns" -gt 0 ] && exit 1
+exit 0
