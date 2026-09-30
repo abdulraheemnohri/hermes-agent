@@ -7,6 +7,15 @@ trap 'rm -rf "$TMP"' EXIT
 export HERMES_HOME="$TMP/hermes"
 export PATH="$TMP/fakebin:$BIN:$PATH"
 mkdir -p "$TMP/fakebin" "$HERMES_HOME/models/litertlm" "$HERMES_HOME/models/gguf" "$HERMES_HOME/tensor/state"
+cat >"$TMP/fakebin/uname" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = "-m" ]; then
+  echo aarch64
+else
+  exec /usr/bin/uname "$@"
+fi
+EOF
+chmod +x "$TMP/fakebin/uname"
 for f in "$BIN"/*; do bash -n "$f"; done
 cat >"$TMP/fakebin/litert_lm_main" <<'EOF'
 #!/bin/sh
