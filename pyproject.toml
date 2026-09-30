@@ -52,7 +52,6 @@ dependencies = [
   "rich==14.3.3; python_version >= '3.14'",
   "tenacity==9.1.4; python_version >= '3.14'",
   "tomli-w==1.2.0; python_version >= '3.14'",  # Preserve relative dependency paths in staged plugin metadata.
-  # 0.18.17 requires ruamel.yaml.clib on 3.14, which has no Windows ARM64 wheel.
   "ruamel.yaml==0.18.16; python_version >= '3.14'",
   "requests==2.33.0; python_version >= '3.14'",  # CVE-2026-25645
   "jinja2==3.1.6; python_version >= '3.14'",
@@ -108,16 +107,10 @@ dependencies = [
   # cryptography<49, so [tool.uv] also holds an override. Read that comment
   # before you move this version.
   "cryptography==50.0.1; python_version >= '3.14'",  # CVE-2026-69247, GHSA-m2h6-j472-rp4c, GHSA-jwv3-5hgf-82ww, CVE-2026-39892, CVE-2026-34073, GHSA-537c-gmf6-5ccf
-  # Windows has no IANA tzdata shipped with the OS, so Python's ``zoneinfo``
   # (PEP 615) raises ``ZoneInfoNotFoundError`` for every non-UTC timezone
-  # out of the box.  ``tzdata`` ships the Olson database as a data package
-  # Python resolves automatically.  No-op on Linux/macOS (which have
   # /usr/share/zoneinfo).  Credits: PR #13182 (@sprmn24).
   # Cross-platform process / PID management.  `psutil` is the canonical
   # answer for "is this PID alive" and process-tree walking across Linux,
-  # macOS and Windows.  It replaces POSIX-only idioms like `os.kill(pid, 0)`
-  # (which is a silent killer on Windows — see CONTRIBUTING.md) and
-  # `os.killpg` (which doesn't exist on Windows).
   "psutil==7.2.2; sys_platform != 'android' and python_version >= '3.14'",
   # Android Python 3.13+ needs upstream #2891 for platform recognition and
   # disk_partitions(). The fix is not in a published psutil release yet.
@@ -148,11 +141,6 @@ dependencies = [
   # without an explicit dependency here (and in the `web` extra below).
   "python-multipart>=0.0.9,<1; python_version >= '3.14'",
   "ptyprocess>=0.7.0,<1; sys_platform != 'win32' and python_version >= '3.14'",
-  # Python 3.14 requires pywinpty 3.x. Version 3.0.5 includes the native
-  # binaries missing from 3.0.4 wheels on both Windows architectures.
-  # Desktop SSH's Windows remote runtime (hermes_cli/windows_ssh_runtime.py)
-  # imports win32security/win32file/etc. directly — declare pywin32 rather than
-  # relying on the concurrent-log-handler → portalocker transitive chain.
   # App Installer checks use Package from ApplicationModel. Foundation
   # supplies the URI and async result types projected when the checker runs.
   # Store update queries and request results project collection interfaces.
@@ -176,21 +164,12 @@ dependencies = [
   # builds render icons with the runtime interpreter (`hermes desktop`,
   # `hermes update`), so a source install carries its renderer instead of
   # preparing a separate environment at launch. abi3 wheels for every
-  # shipped platform, including Windows ARM64 and Android.
   "resvg-py==0.4.0; python_version >= '3.14'",
-  # Windows log rotation. Stdlib ``RotatingFileHandler.doRollover()`` uses
   # ``os.rename()`` which fails with ``PermissionError [WinError 32]`` on
-  # Windows whenever any other process holds an append-mode handle on
   # ``agent.log`` (always the case in Hermes — TUI, gateway, ``hy_memory``
   # server, MCP servers, and on-demand CLI commands all log from separate
   # processes), pinning ``agent.log`` at the 5 MiB threshold and spamming
-  # stderr on every emit (see #44873). ``concurrent-log-handler`` wraps the
-  # rename in a cross-process file lock (via ``portalocker``: pywin32 on
-  # Windows) so only one process rotates at a time. ``hermes_logging.py``
-  # aliases it ONLY on Windows — POSIX renames an open file fine, so stdlib
   # already works there and managed-mode perms depend on its exact lifecycle.
-  # Hence the ``sys_platform == 'win32'`` marker: the dep (and its portalocker
-  # / pywin32 tree) ships only where it's actually used.
   # First-party lifecycle and shared-metrics runtime. Relay 0.9 is the supported
   # native runtime and provider-codec baseline. Managed calls pass request and
   # response data through this native module in-process; shared metrics installs
@@ -244,7 +223,6 @@ kittentts = [
   "misaki[en] @ git+https://github.com/NousResearch/misaki.git@f03fd2be7346952a83d3d4845c217fc7667f322d ; (platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or sys_platform != 'darwin')",
   "soundfile==0.14.0; (platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or sys_platform != 'darwin')",
 ]
-# onnxruntime has no Intel macOS wheel. Piper has no Windows ARM64 wheel.
 piper = [
   "piper-tts==1.8.0; (platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or sys_platform != 'darwin')",
 ]
@@ -264,7 +242,6 @@ messaging = [
 cron = [] # croniter is now a core dependency; this extra kept for back-compat
 slack = ["slack-bolt==1.30.0", "slack-sdk==3.44.1", "aiohttp==3.14.3"]
 # Matrix gateway deps. `mautrix[encryption]` pulls `python-olm`, whose
-# vendored libolm (archived 2023) cannot build on Windows or modern macOS:
 # no wheels for those targets AND the sdist fails to compile on current
 # clang/MSVC (olm/list.hh const-iterator error) and on CMake >= 4. It is
 # linux-only — gate the whole extra so `uv sync --all-extras` (the bundle
@@ -288,7 +265,6 @@ tts-premium = ["elevenlabs==1.59.0"]
 voice = [
   # Local STT pulls in wheel-only transitive deps (ctranslate2, onnxruntime).
   # faster-whisper's closure is prebuilt-only and missing pieces on two
-  # targets: ctranslate2 has no win_arm64 wheel/sdist (win32-arm64), and
   # onnxruntime has no darwin-x64 wheel/sdist (darwin-x64). Gate the local
   # STT path off both; sounddevice/numpy still ship.
   "faster-whisper==1.2.1; (platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or platform_system != 'Darwin')",
@@ -300,7 +276,6 @@ voice = [
 wake = [
   # pyopen-wakeword includes the TFLite library and shared feature models.
   # Its universal2 wheel contains an ARM64-only library, so Intel Macs cannot
-  # load it. There is no native Windows ARM64 wheel either.
   "pyopen-wakeword==1.1.0; (platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or sys_platform != 'darwin')",
   "sherpa-onnx==1.13.8",
   # uv reads sherpa-onnx metadata from its cp311-linux_armv7l wheel, which
@@ -345,10 +320,8 @@ wake-sherpa = [
 wake-porcupine = ["pvporcupine==4.0.3"]
 # Google Chat service account push (gateway/platforms/google_chat) — pubsub
 # subscriber for the Chat API's Cloud Pub/Sub delivery.
-# grpcio (pubsub's native transitive) has no win_arm64 wheel, so win32-arm64
 # would build its sdist and fail — gate the whole extra off there like
 # faster-whisper. The adapter's pubsub import is lazy, so this just makes the
-# google-chat platform unavailable on win32-arm64.
 google-chat = [
   "google-cloud-pubsub==2.39.2; platform_machine != 'ARM64' or sys_platform != 'win32'",
 ]
@@ -361,7 +334,6 @@ trace-upload = ["huggingface-hub==1.24.0"]
 # like honcho, so a quarantined release cannot break fresh installs.
 supermemory = ["supermemory==3.50.0"]
 # mem0ai pulls qdrant-client → grpcio, which has no win_arm64 wheel — same
-# win32-arm64 gate as google-chat. mem0 is lazy-installed, so on arm64 the
 # provider is simply unavailable.
 mem0 = [
   "mem0ai==2.0.10; platform_machine != 'ARM64' or sys_platform != 'win32'",
@@ -372,7 +344,6 @@ mem0 = [
 # CLI under prompt_toolkit (#40490). This extra is kept as a no-op back-compat
 # alias so existing requests for the `vision` extra resolve.
 vision = []
-# Kept as a no-op back-compat alias — `ptyprocess` and `pywinpty` are now
 # in the main `dependencies` list (with the same platform markers), so
 # any existing requests for the `pty` extra resolve cleanly
 # without pulling in extra packages.
@@ -513,8 +484,6 @@ all = [
   #
   # Why: the matrix extra in particular pulls `mautrix[encryption]`
   # which depends on `python-olm`. python-olm has Linux-only wheels and
-  # no native build path on Windows or modern macOS. With matrix in
-  # [all], `uv sync --locked` on Windows tried to build it from sdist
   # and failed on `make`. Lazy-install routes that build to first use,
   # where the user is expected to have a toolchain available.
   "hermes-agent[cron]",
@@ -594,8 +563,6 @@ wake-openwakeword = "(platform_machine != 'ARM64' or sys_platform != 'win32') an
 stt-whisper = "(platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or platform_system != 'Darwin')"
 # NeuTTS excludes Python 3.14.
 neutts = "python_version < '3.14'"
-# KittenTTS: onnxruntime has no Intel macOS wheel; misaki[en]'s torch has no
-# Windows ARM64 wheel.
 kittentts = "(platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or sys_platform != 'darwin')"
 piper = "(platform_machine != 'ARM64' or sys_platform != 'win32') and (platform_machine != 'x86_64' or sys_platform != 'darwin')"
 
@@ -695,7 +662,6 @@ boto3 = false
 brotlicffi = false
 browser-harness = false
 certifi = false
-concurrent-log-handler = false
 croniter = false
 cryptography = false
 daytona = false
@@ -873,9 +839,7 @@ preview = true # required for PLW1514 (unspecified-encoding) — preview rule
 # All other lints are intentionally disabled (see comment history on this
 # file) while we wrangle typechecks — but PLW1514 is too load-bearing to
 # keep off.  Bare open()/read_text()/write_text() in text mode defaults to
-# the system locale encoding on Windows (cp1252 on US-locale installs),
 # which silently corrupts any non-ASCII file content.  We had three
-# separate Windows sandbox regressions in one debug session before
 # adding the explicit encoding.  This rule keeps new code honest.
 #
 # ASYNC210/220/221/251: blocking calls inside `async def` freeze the whole
