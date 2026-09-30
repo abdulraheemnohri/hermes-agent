@@ -23,6 +23,12 @@ TENSOR_MODEL_DIR=$MODEL_DIR
 TENSOR_THERMAL_MODE=balanced
 TENSOR_LOG_LEVEL=INFO
 EOF
+PROFILE="$HOME/.bashrc"
+touch "$PROFILE"
+grep -qxF 'export PATH="$BIN_DIR:$PATH"' "$PROFILE" 2>/dev/null || printf '\nexport PATH="$BIN_DIR:$PATH"\n' >> "$PROFILE"
+export PATH="$BIN_DIR:$PATH"
+hash -r 2>/dev/null || true
+
 if [ "$BIN_DIR" = "$FALLBACK_BIN_DIR" ] && ! printf '%s' "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
   PROFILE="$HOME/.bashrc"
   touch "$PROFILE"
