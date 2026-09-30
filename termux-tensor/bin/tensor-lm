@@ -1,5 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -u
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
 HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
 DEFAULT_MODEL="$(cat "$HOME_DIR/tensor/state/current-model" 2>/dev/null || true)"
 BIN="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"
