@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
 PROFILE_DIR="$HOME_DIR/tensor/runtime/profiles"
 mkdir -p "$PROFILE_DIR"
-usage(){ echo "Usage: tensor profile status|show|save|recommend"; }
+usage(){ echo "Usage: tensor profile status|show|save|recommend|benchmark"; }
 now(){ date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 device_id(){ printf '%s' "$(getprop ro.soc.model 2>/dev/null || echo unknown)|$(uname -m)|$(getprop ro.build.version.sdk 2>/dev/null || echo unknown)" | sha256sum | awk '{print substr($1,1,16)}'; }
 profile="$PROFILE_DIR/$(device_id).conf"
@@ -13,6 +13,7 @@ case "${1:-status}" in
  status) echo "Profile: $profile"; [ -f "$profile" ] && cat "$profile" || echo "No saved runtime profile" ;;
  show) [ -f "$profile" ] && cat "$profile" || echo "No saved runtime profile" ;;
  save) benchmark_id="${2:-manual}"; mem="$(awk '/MemTotal/ {printf "%.0f",$2/1024; exit}' /proc/meminfo 2>/dev/null || echo 0)"; avail="$(awk '/MemAvailable/ {printf "%.0f",$2/1024; exit}' /proc/meminfo 2>/dev/null || echo 0)"; temp="$(awk '{printf "%.1f",$1/1000; exit}' /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0)"; { echo "profile_version=1"; echo "saved_at=$(now)"; echo "device_id=$(device_id)"; echo "benchmark_id=$benchmark_id"; echo "arch=$(uname -m)"; echo "memory_total_mb=$mem"; echo "memory_available_mb=$avail"; echo "thermal_zone0_c=$temp"; echo "thermal_policy=${TENSOR_THERMAL_MODE:-balanced}"; } > "$profile"; echo "Saved runtime profile: $profile" ;;
+ benchmark) "$ROOT/tensor-benchmark" status ;;
  recommend) avail="$(awk '/MemAvailable/ {printf "%.0f",$2/1024; exit}' /proc/meminfo 2>/dev/null || echo 0)"; temp="$(awk '{printf "%.1f",$1/1000; exit}' /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0)"; echo "Device available RAM: ${avail:-0} MB"; echo "Thermal zone0: ${temp:-0} C"; if awk -v t="$temp" 'BEGIN{exit !(t>=45)}'; then echo "Suggested policy: cool"; else echo "Suggested policy: balanced"; fi; echo "Suggested context: conservative" ;;
  *) usage; exit 2 ;;
 esac
