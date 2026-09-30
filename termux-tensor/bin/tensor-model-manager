@@ -1,0 +1,45 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
+MODEL_DIR="${TENSOR_MODEL_DIR:-$HOME_DIR/models}"
+L_DIR="$MODEL_DIR/litertlm"; G_DIR="$MODEL_DIR/gguf"
+mkdir -p "$L_DIR" "$G_DIR"
+die(){ echo "ERROR: $*" >&2; exit 2; }
+dest_for(){ case "$1" in *.litertlm) echo "$L_DIR/$(basename "$1")";; *.gguf) echo "$G_DIR/$(basename "$1")";; *) return 1;; esac; }
+case "${1:-}" in
+ download)
+   url="${2:-}"; expected="${3:-}"
+   [ -n "$url" ] || die "Usage: tensor model download <https-url> [sha256]"
+   case "$url" in http://*|https://*) ;; *) die "Only HTTP(S) URLs are allowed";; esac
+   name="$(basename "${url%%?*}")"
+   case "$name" in *.litertlm|*.gguf) ;; *) die "URL filename must end in .litertlm or .gguf";; esac
+   dest="$(dest_for "$name")"; part="$dest.part"
+   echo "Downloading: $name"
+   curl -fL --retry 3 --retry-delay 2 -C - -o "$part" "$url" || die "Download failed"
+   [ -s "$part" ] || die "Downloaded file is empty"
+   if [ -n "$expected" ]; then
+     actual="$(sha256sum "$part" | awk '{print $1}')"
+     [ "$actual" = "$expected" ] || { rm -f "$part"; die "SHA256 mismatch"; }
+   fi
+   mv -f "$part" "$dest"
+   echo "Installed: $dest"
+   ;;
+ scan)
+   found=0
+   for d in "$MODEL_DIR/litertlm" "$MODEL_DIR/gguf" "${HOME}/storage/downloads"; do
+     [ -d "$d" ] || continue
+     while IFS= read -r f; do
+       found=1; echo "$f"
+     done < <(find "$d" -maxdepth 1 -type f \( -name '*.litertlm' -o -name '*.gguf' \) -print | sort)
+   done
+   [ "$found" -eq 1 ] || echo "No local model files found"
+   ;;
+ import)
+   src="${2:-}"; [ -f "$src" ] || die "Model not found: $src"
+   dest="$(dest_for "$src")" || die "Unsupported model format"
+   cp -f "$src" "$dest"; echo "Imported: $dest"
+   ;;
+ *) echo "Usage: tensor model-manager download <url> [sha256]|scan|import <file>"; exit 2 ;;
+esac
