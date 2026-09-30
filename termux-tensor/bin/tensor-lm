@@ -6,26 +6,10 @@ HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
 DEFAULT_MODEL="$(cat "$HOME_DIR/tensor/state/current-model" 2>/dev/null || true)"
 BIN="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"
 die(){ echo "ERROR: $*" >&2; exit 1; }
-case "${1:-run}" in
- run)
-   [ -n "$BIN" ] || die "LiteRT-LM native binary not found. Set TENSOR_LITERT_BIN."
-   MODEL_FILE="${2:-$DEFAULT_MODEL}"
-   [ -f "$MODEL_FILE" ] || die "No .litertlm model selected"
-   exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" ${TENSOR_LITERT_ARGS:-}
-   ;;
- benchmark)
-   [ -n "$BIN" ] || die "LiteRT-LM native binary not found. Set TENSOR_LITERT_BIN."
-   MODEL_FILE="${2:-$DEFAULT_MODEL}"
-   [ -f "$MODEL_FILE" ] || die "No model selected"
-   exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" --benchmark --enable_profiling --benchmark_prefill_tokens=1024 --benchmark_decode_tokens=256 --async=false
-   ;;
- status)
-   echo "LiteRT binary: ${BIN:-not-found}"
-   echo "Model: ${DEFAULT_MODEL:-none}"
-   if [ -n "$BIN" ]; then "$BIN" --help >/dev/null 2>&1 && echo "CLI: available" || echo "CLI: failed"; fi
-   ;;
- *)
-   echo "Usage: tensor lm run [model]|benchmark [model]|status"
-   exit 2
-   ;;
+check_model(){ local f="${1:-$DEFAULT_MODEL}"; [ -f "$f" ] || die "Model not found: $f"; case "$f" in *.litertlm) ;; *) die "LiteRT-LM requires a .litertlm model";; esac; }
+case "${1:-status}" in
+ run) [ -n "$BIN" ] || die "LiteRT-LM native binary not found"; MODEL_FILE="${2:-$DEFAULT_MODEL}"; check_model "$MODEL_FILE"; exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" ${TENSOR_LITERT_ARGS:-} ;;
+ benchmark) [ -n "$BIN" ] || die "LiteRT-LM native binary not found"; MODEL_FILE="${2:-$DEFAULT_MODEL}"; check_model "$MODEL_FILE"; exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" --benchmark --enable_profiling --benchmark_prefill_tokens=1024 --benchmark_decode_tokens=256 --async=false ;;
+ status) echo "LiteRT binary: ${BIN:-not-found}"; echo "Model: ${DEFAULT_MODEL:-none}"; [ -n "$BIN" ] && "$BIN" --help >/dev/null 2>&1 && echo "CLI: available" || true ;;
+ *) echo "Usage: tensor lm run [model]|benchmark [model]|status"; exit 2;;
 esac
