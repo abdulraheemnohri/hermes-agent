@@ -1,0 +1,14 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
+HOST="${TENSOR_HOST:-127.0.0.1}"
+PORT="${TENSOR_PORT:-9379}"
+usage(){ echo "Usage: tensor hermes configure|chat|gateway|doctor"; }
+configure(){ command -v hermes >/dev/null 2>&1 || { echo "Hermes not found"; exit 1; }; hermes config set model.provider custom; hermes config set model.base_url "http://$HOST:$PORT/v1"; hermes config set model.api_key none; echo "Hermes configured for http://$HOST:$PORT/v1"; }
+case "${1:-chat}" in
+ configure) configure ;;
+ chat) command -v hermes >/dev/null 2>&1 || exit 1; exec hermes --tui ;;
+ gateway) command -v hermes >/dev/null 2>&1 || exit 1; exec hermes gateway run ;;
+ doctor) exec "$(dirname "$0")/tensor-doctor" ;;
+ *) usage; exit 2 ;;
+esac
