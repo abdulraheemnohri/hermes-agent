@@ -8,6 +8,7 @@ L_DIR="$MODEL_DIR/litertlm"; G_DIR="$MODEL_DIR/gguf"; mkdir -p "$L_DIR" "$G_DIR"
 find_model(){ find "$MODEL_DIR" -maxdepth 2 -type f \( -name "$1" -o -name "$1.litertlm" -o -name "$1.gguf" \) | head -n1; }
 case "${1:-list}" in
  manager) exec "$SCRIPT_DIR/tensor-model-manager" "${@:2}" ;;
+ download|scan) exec "$SCRIPT_DIR/tensor-model-manager" "${@:1}" "${@:2}" ;;
  list) find "$MODEL_DIR" -maxdepth 2 -type f \( -name '*.litertlm' -o -name '*.gguf' \) -print 2>/dev/null ;;
  import) src="${2:-}"; [ -f "$src" ] || { echo "Model not found: $src" >&2; exit 1; }; case "$src" in *.litertlm) dest="$L_DIR/$(basename "$src")";; *.gguf) dest="$G_DIR/$(basename "$src")";; *) echo "Unsupported model format" >&2; exit 2;; esac; cp -f "$src" "$dest"; echo "Imported: $dest" ;;
  check|compat) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; exec "$COMPAT" check "$f" ;;
