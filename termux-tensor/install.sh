@@ -1,10 +1,15 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN_DIR="${HOME}/.local/bin"
+BIN_DIR="${PREFIX:-/data/data/com.termux/files/usr}"
+FALLBACK_BIN_DIR="${HOME}/.local/bin"
 HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
 MODEL_DIR="$HOME_DIR/models"
 TENSOR_DIR="$HOME_DIR/tensor"
+if [ ! -d "$BIN_DIR" ] || [ ! -w "$BIN_DIR" ]; then
+  BIN_DIR="$FALLBACK_BIN_DIR"
+  mkdir -p "$BIN_DIR"
+fi
 mkdir -p "$BIN_DIR" "$MODEL_DIR/litertlm" "$MODEL_DIR/gguf" "$TENSOR_DIR/config" "$TENSOR_DIR/logs" "$TENSOR_DIR/runtime" "$TENSOR_DIR/state" "$TENSOR_DIR/cache"
 for f in "$ROOT"/bin/*; do
   [ -f "$f" ] || continue
@@ -18,7 +23,7 @@ TENSOR_MODEL_DIR=$MODEL_DIR
 TENSOR_THERMAL_MODE=balanced
 TENSOR_LOG_LEVEL=INFO
 EOF
-if ! printf '%s' "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
+if [ "$BIN_DIR" = "$FALLBACK_BIN_DIR" ] && ! printf '%s' "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
   PROFILE="$HOME/.bashrc"
   touch "$PROFILE"
   grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$PROFILE" 2>/dev/null || printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$PROFILE"
@@ -26,5 +31,6 @@ if ! printf '%s' "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
   echo "Added $BIN_DIR to PATH in $PROFILE"
 fi
 echo "Hermes Tensor Termux profile installed."
+echo "Installed commands in: $BIN_DIR"
 echo "Run: tensor doctor"
 echo "Run: tensor status"
