@@ -1,8 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -u
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
+CONF="$HOME_DIR/tensor/config/tensor.conf"
+set_mode(){ mode="$1"; mkdir -p "$(dirname "$CONF")"; if [ -f "$CONF" ] && grep -q '^TENSOR_THERMAL_MODE=' "$CONF"; then sed -i "s/^TENSOR_THERMAL_MODE=.*/TENSOR_THERMAL_MODE=$mode/" "$CONF"; else printf 'TENSOR_THERMAL_MODE=%s\n' "$mode" >> "$CONF"; fi; echo "Thermal mode: $(printf '%s' "$mode" | tr '[:lower:]' '[:upper:]') (persisted)"; }
 case "${1:-status}" in
  status) if [ -r /sys/class/thermal/thermal_zone0/temp ]; then raw=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0); awk "BEGIN {printf \"zone0: %.1f C\\n\", $raw/1000}"; else echo unavailable; fi ;;
- cool) export TENSOR_THERMAL_MODE=cool; echo 'Thermal mode: COOL (session only)' ;;
- balanced) export TENSOR_THERMAL_MODE=balanced; echo 'Thermal mode: BALANCED (session only)' ;;
- *) echo 'Usage: tensor thermal status|cool|balanced'; exit 2 ;;
+ cool|balanced|performance) set_mode "$1" ;;
+ *) echo 'Usage: tensor thermal status|cool|balanced|performance'; exit 2 ;;
 esac

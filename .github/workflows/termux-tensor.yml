@@ -1,0 +1,25 @@
+name: Termux Tensor verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'termux-tensor/**'
+      - '.github/workflows/termux-tensor.yml'
+  pull_request:
+    paths:
+      - 'termux-tensor/**'
+      - '.github/workflows/termux-tensor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-and-cli:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Termux Tensor tests
+        run: bash termux-tensor/tests/test_cli.sh

@@ -12,16 +12,67 @@ model_path(){ cat "$HOME_DIR/tensor/state/current-model" 2>/dev/null || true; }
 file_size(){ [ -f "$1" ] && wc -c < "$1" | tr -d " " || echo 0; }
 thermal(){ awk '{printf "%.1f",$1/1000; exit}' /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0; }
 ram(){ awk '/MemAvailable/ {printf "%.0f",$2/1024; exit}' /proc/meminfo 2>/dev/null || echo 0; }
-run_id(){ printf '%s' "$(now)|$$" | sha256sum | awk '{print substr($1,1,12)}'; }
+run_id(){ printf '%s' "$(now)|$$|$RANDOM" | sha256sum | awk '{print substr($1,1,12)}'; }
 record_header(){ [ -f "$HISTORY" ] || printf "run_id\ttimestamp\tdevice_id\tmodel\tmodel_bytes\tthermal_c\tavailable_ram_mb\tprefill_tokens\tdecode_tokens\tprefill_tps\tdecode_tps\tinit_seconds\tttft_seconds\tpeak_memory_mb\tstatus\tsource\n" > "$HISTORY"; }
-record(){ model="${2:-$(model_path)}"; summary="${3:-}"; [ -n "$model" ] || { echo "ERROR: no model selected" >&2; exit 2; }; [ -n "$summary" ] || { echo "Usage: tensor benchmark record <model> <summary>"; exit 2; }; record_header; printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\t0\t0\t0\t0\t0\t0\tOK\tmanual\n" "$(run_id)" "$(now)" "$(device_id)" "$model" "$(file_size "$model")" "$(thermal)" "$(ram)" >> "$HISTORY"; echo "Recorded benchmark run (manual summary: $summary)"; }
-parse(){ file="$2"; [ -f "$file" ] || { echo "ERROR: output file not found: $file" >&2; exit 2; }; model="${3:-$(model_path)}"; prefill="$(grep -Eio 'prefill[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(tokens/s|tok/s|t/s)' "$file" | tail -n1 | grep -Eo '[0-9]+([.][0-9]+)?' | tail -n1 || true)"; decode="$(grep -Eio 'decode[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(tokens/s|tok/s|t/s)' "$file" | tail -n1 | grep -Eo '[0-9]+([.][0-9]+)?' | tail -n1 || true)"; init="$(grep -Eio '(init|initialization)[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(s|sec|seconds|ms)' "$file" | tail -n1 || true)"; ttft="$(grep -Eio '(time to first token|ttft)[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(s|sec|seconds|ms)' "$file" | tail -n1 || true)"; record_header; printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\tOK\tparsed\n" "$(run_id)" "$(now)" "$(device_id)" "$model" "$(file_size "$model")" "$(thermal)" "$(ram)" "${TENSOR_BENCHMARK_PREFILL_TOKENS:-1024}" "${TENSOR_BENCHMARK_DECODE_TOKENS:-256}" "${prefill:-0}" "${decode:-0}" "${init:-0}" "${ttft:-0}" >> "$HISTORY"; echo "Parsed and recorded benchmark output. Unrecognized metrics remain 0."; }
+to_seconds(){
+  value="$1"; unit="$2"
+  awk -v v="$value" -v u="$unit" 'BEGIN{if(u=="ms") printf "%.6f",v/1000; else printf "%.6f",v+0}'
+}
+extract_metric(){
+  file="$1"; pattern="$2"
+  match="$(grep -Eio "$pattern" "$file" | tail -n1 || true)"
+  [ -n "$match" ] || { printf '0'; return; }
+  value="$(printf '%s\n' "$match" | grep -Eo '[0-9]+([.][0-9]+)?' | tail -n1 || true)"
+  unit="$(printf '%s\n' "$match" | grep -Eio '(ms|sec|secs|seconds|s)' | tail -n1 | tr '[:upper:]' '[:lower:]' || true)"
+  [ -n "$value" ] || { printf '0'; return; }
+  to_seconds "$value" "${unit:-s}"
+}
+record(){
+  model="${2:-$(model_path)}"; summary="${3:-}"
+  [ -n "$model" ] || { echo "ERROR: no model selected" >&2; exit 2; }
+  [ -n "$summary" ] || { echo "Usage: tensor benchmark record <model> <summary>"; exit 2; }
+  record_header
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\t0\t0\t0\t0\t0\t0\tOK\tmanual\n" "$(run_id)" "$(now)" "$(device_id)" "$model" "$(file_size "$model")" "$(thermal)" "$(ram)" >> "$HISTORY"
+  echo "Recorded benchmark run (manual summary: $summary)"
+}
+record_failed(){
+  model="$1"; record_header
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\t0\t0\t0\t0\tFAILED\truntime\n" "$(run_id)" "$(now)" "$(device_id)" "$model" "$(file_size "$model")" "$(thermal)" "$(ram)" "${TENSOR_BENCHMARK_PREFILL_TOKENS:-1024}" "${TENSOR_BENCHMARK_DECODE_TOKENS:-256}" >> "$HISTORY"
+}
+parse(){
+  file="$2"
+  [ -f "$file" ] || { echo "ERROR: output file not found: $file" >&2; exit 2; }
+  model="${3:-$(model_path)}"
+  prefill="$(extract_metric "$file" 'prefill[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(tokens/s|tok/s|t/s)')"
+  decode="$(extract_metric "$file" 'decode[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(tokens/s|tok/s|t/s)')"
+  init="$(extract_metric "$file" '(init|initialization)[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(s|sec|seconds|ms)')"
+  ttft="$(extract_metric "$file" '(time to first token|ttft)[^0-9]*[0-9]+([.][0-9]+)?[[:space:]]*(s|sec|seconds|ms)')"
+  record_header
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\tOK\tparsed\n" "$(run_id)" "$(now)" "$(device_id)" "$model" "$(file_size "$model")" "$(thermal)" "$(ram)" "${TENSOR_BENCHMARK_PREFILL_TOKENS:-1024}" "${TENSOR_BENCHMARK_DECODE_TOKENS:-256}" "${prefill:-0}" "${decode:-0}" "${init:-0}" "${ttft:-0}" >> "$HISTORY"
+  echo "Parsed and recorded benchmark output."
+}
 compare(){ [ -f "$HISTORY" ] || { echo "No benchmark history"; exit 1; }; column -t -s $'\t' "$HISTORY" 2>/dev/null || cat "$HISTORY"; }
-regression(){ [ -f "$HISTORY" ] || { echo "No benchmark history"; exit 1; }; echo "Metric regression check (same device + model):"; awk -F '\t' 'NR>1 && $15=="OK" {k=$3 SUBSEP $4; if(k in n){if($10>0 && p[k]>0 && $10<p[k]*0.90) print "PREFILL_REGRESSION",$3,$4,"previous="p[k],"current="$10; if($11>0 && d[k]>0 && $11<d[k]*0.90) print "DECODE_REGRESSION",$3,$4,"previous="d[k],"current="$11;} p[k]=$10; d[k]=$11; n[k]++}' "$HISTORY"; }
+regression(){
+  [ -f "$HISTORY" ] || { echo "No benchmark history"; exit 1; }
+  echo "Metric regression check (same device + model):"
+  awk -F '\t' 'NR>1 && $15=="OK" {k=$3 SUBSEP $4; if(k in n){if($10>0 && p[k]>0 && $10<p[k]*0.90) print "PREFILL_REGRESSION",$3,$4,"previous="p[k],"current="$10; if($11>0 && d[k]>0 && $11<d[k]*0.90) print "DECODE_REGRESSION",$3,$4,"previous="d[k],"current="$11;} p[k]=$10; d[k]=$11; n[k]++}' "$HISTORY"
+}
 case "${1:-status}" in
  status) echo "Benchmark history: $HISTORY"; [ -f "$HISTORY" ] && { echo "Runs: $(($(wc -l < "$HISTORY")-1))"; tail -n 10 "$HISTORY"; } || echo "No benchmark history";;
  record) record "$@";;
- run)\n model="${2:-$(model_path)}"; [ -f "$model" ] || { echo "ERROR: model not found: $model" >&2; exit 2; };\n bin="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"; [ -n "$bin" ] || { echo "ERROR: LiteRT-LM native binary not found" >&2; exit 1; };\n out="$HISTORY_DIR/run-$(run_id).log"; echo "Running LiteRT-LM benchmark..."; "$bin" --backend=cpu --model_path="$model" --benchmark --enable_profiling --benchmark_prefill_tokens="${TENSOR_BENCHMARK_PREFILL_TOKENS:-1024}" --benchmark_decode_tokens="${TENSOR_BENCHMARK_DECODE_TOKENS:-256}" --async=false >"$out" 2>&1; rc=$?; echo "Benchmark exit status: $rc"; if [ "$rc" -eq 0 ]; then parse "$out" "$model"; else echo "Benchmark output: $out"; tail -n 30 "$out"; exit "$rc"; fi;;\n parse) parse "$@";;
+ run)
+   model="${2:-$(model_path)}"
+   [ -f "$model" ] || { echo "ERROR: model not found: $model" >&2; exit 2; }
+   bin="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"
+   [ -n "$bin" ] || { echo "ERROR: LiteRT-LM native binary not found" >&2; exit 1; }
+   out="$HISTORY_DIR/run-$(run_id).log"
+   echo "Running LiteRT-LM benchmark..."
+   "$bin" --backend=cpu --model_path="$model" --benchmark --enable_profiling --benchmark_prefill_tokens="${TENSOR_BENCHMARK_PREFILL_TOKENS:-1024}" --benchmark_decode_tokens="${TENSOR_BENCHMARK_DECODE_TOKENS:-256}" --async=false >"$out" 2>&1
+   rc=$?
+   echo "Benchmark exit status: $rc"
+   if [ "$rc" -eq 0 ]; then parse "$out" "$model"; else record_failed "$model"; echo "Benchmark output: $out"; tail -n 30 "$out"; exit "$rc"; fi
+   ;;
+ parse) parse "$@";;
  compare) compare;;
  regression) regression;;
  *) echo "Usage: tensor benchmark status|run [model]|record <model> <summary>|parse <output-file> [model]|compare|regression"; exit 2;;

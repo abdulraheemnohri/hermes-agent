@@ -4,6 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
 BIN_LM="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"
 BIN_SERVER="${TENSOR_SERVER_BIN:-$(command -v llama-server 2>/dev/null || true)}"
+json_escape(){ printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\\"/g'; }
 case "${1:-status}" in
  status)
    echo "=== Tensor Runtime Probe ==="
@@ -12,8 +13,7 @@ case "${1:-status}" in
    if [ -n "$BIN_SERVER" ]; then echo "llama-server: $BIN_SERVER"; "$BIN_SERVER" --version 2>&1 | head -n 2 || true; else echo "llama-server: not found"; fi
    ;;
  json)
-   printf '{"arch":"%s","litert_lm":"%s","llama_server":"%s"}
-' "$(uname -m)" "$BIN_LM" "$BIN_SERVER"
+   printf '{"arch":"%s","litert_lm":"%s","llama_server":"%s"}\n' "$(json_escape "$(uname -m)")" "$(json_escape "$BIN_LM")" "$(json_escape "$BIN_SERVER")"
    ;;
  *) echo "Usage: tensor runtime status|json"; exit 2;;
 esac

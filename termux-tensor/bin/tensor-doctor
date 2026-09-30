@@ -3,23 +3,30 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
 HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"; MODEL_DIR="${TENSOR_MODEL_DIR:-$HOME_DIR/models}"
-errors=0; warns=0; json=0; [ "${1:-}" = "--json" ] && json=1
-check(){ command -v "$1" >/dev/null 2>&1 || { echo "WARN: missing command: $1"; warns=$((warns+1)); }; }
-[ "$json" -eq 0 ] && echo "=== Hermes Tensor / Termux Doctor ==="
+errors=0; warns=0
+check(){ command -v "$1" >/dev/null 2>&1 || warns=$((warns+1)); }
 for c in bash curl git hermes; do check "$c"; done
-for c in litert_lm_main llama-server; do command -v "$c" >/dev/null 2>&1 && echo "OK: $c -> $(command -v "$c")" || echo "INFO: $c not found"; done
-"$SCRIPT_DIR/tensor-runtime" status >/dev/null 2>&1 || { echo "WARN: runtime probe failed"; warns=$((warns+1)); }
-[ "$(uname -m)" = "aarch64" ] || { echo "ERROR: ARM64/aarch64 required; got $(uname -m)"; errors=$((errors+1)); }
-[ -d "$MODEL_DIR" ] || { echo "WARN: model directory missing: $MODEL_DIR"; warns=$((warns+1)); }
+for c in litert_lm_main llama-server; do command -v "$c" >/dev/null 2>&1 || true; done
+[ "$(uname -m)" = "aarch64" ] || errors=$((errors+1))
+[ -d "$MODEL_DIR" ] || warns=$((warns+1))
 if [ -f "$HOME_DIR/tensor/state/current-model" ]; then
  M="$(cat "$HOME_DIR/tensor/state/current-model")"
- [ -f "$M" ] || { echo "ERROR: selected model missing: $M"; errors=$((errors+1)); }
- case "$M" in *.litertlm|*.gguf) rc=0; "$SCRIPT_DIR/tensor-compat" check "$M" || rc=$?; [ "$rc" -eq 2 ] && errors=$((errors+1)); [ "$rc" -eq 1 ] && warns=$((warns+1));; *) echo "ERROR: unsupported selected model format"; errors=$((errors+1));; esac
+ [ -f "$M" ] || errors=$((errors+1))
+ if [ -f "$M" ]; then case "$M" in *.litertlm|*.gguf) "$SCRIPT_DIR/tensor-compat" check "$M" >/dev/null 2>&1 || rc=$?; rc="${rc:-0}"; [ "$rc" -eq 2 ] && errors=$((errors+1)); [ "$rc" -eq 1 ] && warns=$((warns+1));; *) errors=$((errors+1));; esac; fi
 fi
-if command -v curl >/dev/null 2>&1; then curl -fsS --max-time 1 "http://${TENSOR_HOST:-127.0.0.1}:${TENSOR_PORT:-9379}/v1/models" >/dev/null 2>&1 && echo "OK: local inference endpoint reachable" || true; fi
-[ -r /proc/meminfo ] && awk "/MemTotal/ {printf \"Memory: %.0f MB\\n\",$2/1024}" /proc/meminfo
-[ -r /sys/class/thermal/thermal_zone0/temp ] && awk "{printf \"Thermal zone0: %.1f C\\n\",$1/1000}" /sys/class/thermal/thermal_zone0/temp
-[ "$json" -eq 0 ] && echo "Result: errors=$errors warnings=$warns"
+if [ "${1:-}" = "--json" ]; then
+ printf '{"errors":%s,"warnings":%s,"arch":"%s","model_dir":"%s","litert_lm":"%s","llama_server":"%s"}\n' "$errors" "$warns" "$(uname -m)" "$(printf '%s' "$MODEL_DIR" | sed 's/\\/\\\\/g; s/"/\\\"/g')" "$(command -v litert_lm_main 2>/dev/null || true)" "$(command -v llama-server 2>/dev/null || true)"
+else
+ echo "=== Hermes Tensor / Termux Doctor ==="
+ echo "Architecture: $(uname -m)"
+ command -v hermes >/dev/null 2>&1 && echo "OK: hermes" || echo "WARN: hermes not found"
+ command -v litert_lm_main >/dev/null 2>&1 && echo "OK: litert_lm_main" || echo "INFO: litert_lm_main not found"
+ command -v llama-server >/dev/null 2>&1 && echo "OK: llama-server" || echo "INFO: llama-server not found"
+ [ -d "$MODEL_DIR" ] && echo "OK: model directory $MODEL_DIR" || echo "WARN: model directory missing"
+ [ -r /proc/meminfo ] && awk '/MemTotal/ {printf "Memory: %.0f MB\n",$2/1024}' /proc/meminfo
+ [ -r /sys/class/thermal/thermal_zone0/temp ] && awk '{printf "Thermal zone0: %.1f C\n",$1/1000}' /sys/class/thermal/thermal_zone0/temp
+ echo "Result: errors=$errors warnings=$warns"
+fi
 [ "$errors" -gt 0 ] && exit 2
 [ "$warns" -gt 0 ] && exit 1
 exit 0
