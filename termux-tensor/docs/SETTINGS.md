@@ -33,3 +33,9 @@ Use `tensor profile save <benchmark-id>` after a validated benchmark. `tensor pr
 Benchmark records are stored locally at `~/.hermes/tensor/runtime/benchmarks/history.tsv`. The history contains timestamp, device profile ID, model path, model size, thermal reading, available RAM and the recorded benchmark result summary.
 
 Use `tensor benchmark status`, `tensor benchmark compare`, and `tensor benchmark regression` to inspect history. No cloud telemetry is used.
+
+
+## Structured benchmark metrics
+`tensor benchmark parse <output-file> [model]` records parsed LiteRT-LM benchmark metrics locally. The parser captures prefill/decode throughput and recognizes initialization/time-to-first-token text when present; unsupported or unrecognized metrics remain `0` rather than being guessed. `tensor benchmark regression` flags a same-device/model throughput drop greater than 10%.
+
+LiteRT-LM's current official CLI supports `--benchmark`, `--enable_profiling`, `--benchmark_prefill_tokens`, `--benchmark_decode_tokens`, and `--async=false`; the repository's benchmark defaults match these documented flags. citeturn0search0
