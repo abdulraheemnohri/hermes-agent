@@ -1,0 +1,11 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
+CONF="$HOME_DIR/tensor/config/tensor.conf"
+[ -f "$CONF" ] && . "$CONF"
+export HERMES_HOME="$HOME_DIR"
+export TENSOR_MODEL_DIR="${TENSOR_MODEL_DIR:-$HOME_DIR/models}"
+export TENSOR_HOST="${TENSOR_HOST:-127.0.0.1}"
+export TENSOR_PORT="${TENSOR_PORT:-9379}"
+export TENSOR_THERMAL_MODE="${TENSOR_THERMAL_MODE:-balanced}"
+export TENSOR_LOG_LEVEL="${TENSOR_LOG_LEVEL:-INFO}"
