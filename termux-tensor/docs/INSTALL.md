@@ -116,6 +116,24 @@ LiteRT-LM documents Android ARM64 native builds using NDK r28b or newer. Buildin
 
 ## 7. Model installation
 
+Download directly with resume support (a `.part` file is used until completion):
+
+```bash
+tensor model download https://example.org/model.gguf
+# Optional checksum verification:
+tensor model download https://example.org/model.litertlm <sha256>
+```
+
+Discover models in the managed directories and Android Downloads:
+
+```bash
+tensor model scan
+```
+
+Downloads are restricted to HTTP(S) URLs and only `.litertlm` / `.gguf` filenames are accepted.
+
+## 7. Model installation
+
 Copy a compatible .litertlm model:
 
 ```bash
