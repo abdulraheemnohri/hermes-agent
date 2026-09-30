@@ -113,7 +113,6 @@ dependencies = [
   # out of the box.  ``tzdata`` ships the Olson database as a data package
   # Python resolves automatically.  No-op on Linux/macOS (which have
   # /usr/share/zoneinfo).  Credits: PR #13182 (@sprmn24).
-  "tzdata==2025.3; sys_platform == 'win32' and python_version >= '3.14'",
   # Cross-platform process / PID management.  `psutil` is the canonical
   # answer for "is this PID alive" and process-tree walking across Linux,
   # macOS and Windows.  It replaces POSIX-only idioms like `os.kill(pid, 0)`
@@ -151,18 +150,12 @@ dependencies = [
   "ptyprocess>=0.7.0,<1; sys_platform != 'win32' and python_version >= '3.14'",
   # Python 3.14 requires pywinpty 3.x. Version 3.0.5 includes the native
   # binaries missing from 3.0.4 wheels on both Windows architectures.
-  "pywinpty>=3.0.5,<4; sys_platform == 'win32' and python_version >= '3.14'",
   # Desktop SSH's Windows remote runtime (hermes_cli/windows_ssh_runtime.py)
   # imports win32security/win32file/etc. directly — declare pywin32 rather than
   # relying on the concurrent-log-handler → portalocker transitive chain.
-  "pywin32>=306,<312; sys_platform == 'win32' and python_version >= '3.14'",
   # App Installer checks use Package from ApplicationModel. Foundation
   # supplies the URI and async result types projected when the checker runs.
-  "winrt-windows-applicationmodel>=3.2.1,<4; sys_platform == 'win32' and python_version >= '3.14'",
-  "winrt-windows-foundation>=3.2.1,<4; sys_platform == 'win32' and python_version >= '3.14'",
   # Store update queries and request results project collection interfaces.
-  "winrt-windows-foundation-collections>=3.2.1,<4; sys_platform == 'win32' and python_version >= '3.14'",
-  "winrt-windows-services-store>=3.2.1,<4; sys_platform == 'win32' and python_version >= '3.14'",
   # Image resize recovery for the vision tools. Pillow shrinks oversized images
   # (>5 MB or >8000px) at embed time; without it the byte AND pixel-dimension
   # shrink paths no-op, so an oversized image bakes into immutable history and
@@ -198,7 +191,6 @@ dependencies = [
   # already works there and managed-mode perms depend on its exact lifecycle.
   # Hence the ``sys_platform == 'win32'`` marker: the dep (and its portalocker
   # / pywin32 tree) ships only where it's actually used.
-  "concurrent-log-handler==0.9.29; sys_platform == 'win32' and python_version >= '3.14'",
   # First-party lifecycle and shared-metrics runtime. Relay 0.9 is the supported
   # native runtime and provider-codec baseline. Managed calls pass request and
   # response data through this native module in-process; shared metrics installs
@@ -213,7 +205,7 @@ dependencies = [
   # 738 CPython reports sys_platform == 'android' and never matched.) Pre-GKI
   # devices can still slip through; they get the same resolution failure as
   # before, worked around by installing with `--no-deps` or an older release.
-  "nemo-relay>=0.9,<0.10; ((sys_platform == 'darwin' and platform_machine == 'arm64') or (sys_platform == 'linux' and platform_machine == 'x86_64' and 'android' not in platform_release) or (sys_platform == 'linux' and platform_machine == 'aarch64' and 'android' not in platform_release) or (sys_platform == 'win32' and platform_machine == 'AMD64') or (sys_platform == 'win32' and platform_machine == 'ARM64')) and python_version >= '3.14'",]
+  "nemo-relay>=0.9,<0.10; (sys_platform == 'linux' and 'android' not in platform_release) and python_version >= '3.14'",
 
 [project.optional-dependencies]
 # High-performance event loop — uvloop replaces the stdlib asyncio loop with
@@ -554,7 +546,6 @@ dev = [
 # environment, not the core runtime. Keep the Anthropic SDK at the same
 # reviewed version as the optional runtime extra above.
 test = [
-  "distlib==0.4.3; sys_platform == 'win32'",
   "anthropic==0.87.0",
 ]
 
@@ -789,7 +780,6 @@ starlette = false
 supermemory = false
 tenacity = false
 ty = false
-tzdata = false
 unpaddedbase64 = false
 uvicorn = false
 vercel = false
@@ -915,7 +905,7 @@ select = ["PLW1514", "ASYNC210", "ASYNC220", "ASYNC221", "ASYNC251", "TID251"]
 [tool.ruff.lint.per-file-ignores]
 "pm/**" = ["TID251"]
 # Desktop E2E fixtures stand in for PM's worker/runtime and reach into it like tests do.
-"apps/desktop/electron/fixtures/**" = ["TID251"]
+
 # Tests can intentionally exercise locale-encoding edge cases.
 "tests/**" = [
   "PLW1514",
