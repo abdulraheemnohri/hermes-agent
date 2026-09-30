@@ -28,3 +28,8 @@ TENSOR_BENCHMARK_DECODE_TOKENS=256
 
 ## Runtime profile
 Use `tensor profile save <benchmark-id>` after a validated benchmark. `tensor profile recommend` reports a conservative thermal/context suggestion; it does not claim direct control of Android thermal governors.
+
+## Benchmark history
+Benchmark records are stored locally at `~/.hermes/tensor/runtime/benchmarks/history.tsv`. The history contains timestamp, device profile ID, model path, model size, thermal reading, available RAM and the recorded benchmark result summary.
+
+Use `tensor benchmark status`, `tensor benchmark compare`, and `tensor benchmark regression` to inspect history. No cloud telemetry is used.
