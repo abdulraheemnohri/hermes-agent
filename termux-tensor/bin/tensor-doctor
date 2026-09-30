@@ -8,7 +8,8 @@ errors=0; warns=0; json=0
 check(){ command -v "$1" >/dev/null 2>&1 || { echo "WARN: missing command: $1"; warns=$((warns+1)); }; }
 if [ "$json" -eq 0 ]; then echo "=== Hermes Tensor / Termux Doctor ==="; fi
 for c in bash curl git hermes; do check "$c"; done
-for c in litert_lm_main llama-server; do command -v "$c" >/dev/null 2>&1 && echo "OK: $c -> $(command -v "$c")" || true; done
+for c in litert_lm_main llama-server; do command -v "$c" >/dev/null 2>&1 && echo "OK: $c -> $(command -v "$c")" || echo "INFO: $c not found"; done
+"$SCRIPT_DIR/tensor-runtime" status >/dev/null 2>&1 || { echo "WARN: runtime probe failed"; warns=$((warns+1)); }
 [ "$(uname -m)" = "aarch64" ] || { echo "ERROR: ARM64/aarch64 required; got $(uname -m)"; errors=$((errors+1)); }
 [ -d "$MODEL_DIR" ] || { echo "WARN: model directory missing: $MODEL_DIR"; warns=$((warns+1)); }
 if [ -f "$HOME_DIR/tensor/state/current-model" ]; then
