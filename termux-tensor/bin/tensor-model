@@ -3,15 +3,17 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$SCRIPT_DIR/tensor-env" ] && . "$SCRIPT_DIR/tensor-env"
 HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"; MODEL_DIR="${TENSOR_MODEL_DIR:-$HOME_DIR/models}"
-L_DIR="$MODEL_DIR/litertlm"; G_DIR="$MODEL_DIR/gguf"; STATE="$HOME_DIR/tensor/state/current-model"
-mkdir -p "$L_DIR" "$G_DIR" "$(dirname "$STATE")"
-find_model(){ find "$MODEL_DIR" -maxdepth 2 -type f \( -name "$1" -o -name "$1.litertlm" -o -name "$1.gguf" \) | head -n 1; }
+STATE="$HOME_DIR/tensor/state/current-model"; COMPAT="$SCRIPT_DIR/tensor-compat"
+L_DIR="$MODEL_DIR/litertlm"; G_DIR="$MODEL_DIR/gguf"; mkdir -p "$L_DIR" "$G_DIR" "$(dirname "$STATE")"
+find_model(){ find "$MODEL_DIR" -maxdepth 2 -type f \( -name "$1" -o -name "$1.litertlm" -o -name "$1.gguf" \) | head -n1; }
 case "${1:-list}" in
  list) find "$MODEL_DIR" -maxdepth 2 -type f \( -name '*.litertlm' -o -name '*.gguf' \) -print 2>/dev/null ;;
- import) src="${2:-}"; [ -f "$src" ] || { echo "Model not found: $src" >&2; exit 1; }; case "$src" in *.litertlm) dest="$L_DIR/$(basename "$src")";; *.gguf) dest="$G_DIR/$(basename "$src")";; *) echo "Unsupported model format. Use .litertlm or .gguf" >&2; exit 2;; esac; cp -f "$src" "$dest"; echo "Imported: $dest";;
- select) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; printf '%s\n' "$f" > "$STATE"; echo "$f";;
- current) cat "$STATE" 2>/dev/null || echo "No model selected";;
- info) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; printf 'Path: %s\nFormat: %s\nSize: ' "$f" "${f##*.}"; wc -c < "$f"; printf 'SHA256: '; sha256sum "$f" | awk '{print $1}'; [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$f" ] && echo "Selected: yes" || echo "Selected: no";;
- remove) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; if [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$f" ]; then rm -f "$STATE"; echo "Cleared active selection"; fi; rm -f "$f"; echo "Removed $f";;
- *) echo "Usage: tensor model list|import <file>|select <name>|current|info <name>|remove <name>"; exit 2;;
+ import) src="${2:-}"; [ -f "$src" ] || { echo "Model not found: $src" >&2; exit 1; }; case "$src" in *.litertlm) dest="$L_DIR/$(basename "$src")";; *.gguf) dest="$G_DIR/$(basename "$src")";; *) echo "Unsupported model format" >&2; exit 2;; esac; cp -f "$src" "$dest"; echo "Imported: $dest" ;;
+ check|compat) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; exec "$COMPAT" check "$f" ;;
+ recommend|auto-select) exec "$COMPAT" auto >/dev/null || { echo "No compatible model available" >&2; exit 2; }; f="$("$COMPAT" auto)"; printf '%s\n' "$f" > "$STATE"; echo "Auto-selected: $f" ;;
+ select) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; "$COMPAT" check "$f"; rc=$?; [ "$rc" -eq 2 ] && exit 2; printf '%s\n' "$f" > "$STATE"; echo "$f" ;;
+ current) cat "$STATE" 2>/dev/null || echo "No model selected" ;;
+ info) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; printf 'Path: %s\nFormat: %s\nSize: ' "$f" "${f##*.}"; wc -c < "$f"; printf 'SHA256: '; sha256sum "$f" | awk '{print $1}'; [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$f" ] && echo "Selected: yes" || echo "Selected: no" ;;
+ remove) f="$(find_model "${2:-}")"; [ -n "$f" ] || { echo "Model not found" >&2; exit 1; }; if [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$f" ]; then rm -f "$STATE"; fi; rm -f "$f"; echo "Removed $f" ;;
+ *) echo "Usage: tensor model list|import|check|select|recommend|current|info|remove"; exit 2 ;;
 esac
