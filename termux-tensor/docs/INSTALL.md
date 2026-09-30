@@ -61,7 +61,7 @@ If your existing Hermes source installation already works, keep it and continue.
 ## 3. Clone this project
 
 ```bash
-git clone -b feature/termux-google-tensor https://github.com/abdulraheemnohri/hermes-agent.git
+git clone https://github.com/abdulraheemnohri/hermes-agent.git
 cd hermes-agent
 bash termux-tensor/install.sh
 ```

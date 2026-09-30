@@ -75,35 +75,23 @@ The self-improving AI agent built by [Nous Research](https://nousresearch.com). 
 
 ## Install
 
-### Windows or macOS
+### Android / Termux (aarch64)
 
-To easily install the command-line and desktop applications, [download the Hermes Desktop installer](https://hermes-agent.nousresearch.com/) from our website and run it.
-
-### Without Hermes Desktop:
-
-For a command-line only install without Hermes Desktop, run:
-
-For aarch64 Android devices, use the separate [Termux APT guide](./getting-started/termux.md).
-
-#### Linux / macOS / WSL2
+This checkout is maintained for Android/Termux. Use the official signed Hermes Termux package, then install the repository's Tensor profile:
 
 ```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+pkg update
+pkg install curl gnupg git clang cmake make pkg-config
+git clone https://github.com/abdulraheemnohri/hermes-agent.git
+cd hermes-agent
+bash termux-tensor/install.sh
+export PATH="$HOME/.local/bin:$PATH"
+tensor doctor
+tensor status
 ```
 
-#### Windows (native)
+See [Termux](./getting-started/termux.md) and the repository's `termux-tensor/` profile for local model runtime setup.
 
-Run in powershell:
-
-```powershell
-iex (irm https://hermes-agent.nousresearch.com/install.ps1)
-```
-
-See the full **[Installation Guide](./getting-started/installation.md)** for what the installer does, installation ownership and data locations, and Windows-specific notes. For the complete platform support matrix, see **[Platform Support](./getting-started/platform-support.md)**.
-
-:::tip Fastest path to a working agent
-After installing, run `hermes setup --portal` — one OAuth covers a model plus all four Tool Gateway tools (web search, image generation, TTS, browser). See [Nous Portal](./integrations/nous-portal.md).
-:::
 
 ## What is Hermes Agent?
 
