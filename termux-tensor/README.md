@@ -53,6 +53,7 @@ Configure Hermes:
 
     tensor doctor|health
     tensor status
+    tensor runtime status
     tensor version
     tensor logs [lines]
     tensor model list|import|select|current|info|remove
