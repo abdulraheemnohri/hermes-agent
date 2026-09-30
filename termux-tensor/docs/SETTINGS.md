@@ -21,3 +21,10 @@ LiteRT-LM direct mode uses the available native ARM64 CLI. llama.cpp server mode
 
 ## Network
 Bind local inference to 127.0.0.1. LAN access is disabled by design.
+
+## Benchmark
+TENSOR_BENCHMARK_PREFILL_TOKENS=1024
+TENSOR_BENCHMARK_DECODE_TOKENS=256
+
+## Runtime profile
+Use `tensor profile save <benchmark-id>` after a validated benchmark. `tensor profile recommend` reports a conservative thermal/context suggestion; it does not claim direct control of Android thermal governors.
