@@ -189,6 +189,7 @@ tensor model list
 tensor model import <file>
 tensor model select <name>
 tensor model current
+tensor model info <name>
 tensor model remove <name>
 tensor lm run
 tensor lm benchmark
@@ -202,8 +203,7 @@ tensor hermes configure
 tensor hermes chat
 tensor hermes gateway
 tensor thermal status
-tensor thermal cool
-tensor thermal balanced
+tensor thermal set cool|balanced|performance
 ```
 
 ## 12. Environment variables
@@ -211,7 +211,6 @@ tensor thermal balanced
 ```text
 HERMES_HOME
 TENSOR_LITERT_BIN
-TENSOR_MODEL
 TENSOR_MODEL_DIR
 TENSOR_HOST
 TENSOR_PORT
@@ -271,7 +270,3 @@ Check the file path, model compatibility, free RAM, storage permissions, and sel
 
 ### Hermes endpoint
 First make direct inference work, then make the local HTTP server work, then configure Hermes. This isolates runtime problems from agent problems.
-
-## 16. V2
-
-True Android Tensor accelerator integration belongs in the native Android LiteRT-LM service. Termux remains the Hermes control layer and communicates with that service over localhost.
