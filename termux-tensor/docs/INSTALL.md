@@ -296,3 +296,11 @@ Check the file path, model compatibility, free RAM, storage permissions, and sel
 
 ### Hermes endpoint
 First make direct inference work, then make the local HTTP server work, then configure Hermes. This isolates runtime problems from agent problems.
+
+
+### Automated LiteRT-LM benchmark
+After installing a compatible native `litert_lm_main` binary and selecting a `.litertlm` model, run:
+
+`tensor benchmark run [model]`
+
+The command executes the configured CPU benchmark, saves raw output under `~/.hermes/tensor/runtime/benchmarks/`, parses recognized metrics, and records the result locally. A non-zero runtime exit status is preserved and the failed run is not treated as a successful benchmark.
