@@ -19,7 +19,11 @@ TENSOR_THERMAL_MODE=balanced
 TENSOR_LOG_LEVEL=INFO
 EOF
 if ! printf '%s' "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
-  echo "Add this directory to PATH: $BIN_DIR"
+  PROFILE="$HOME/.bashrc"
+  touch "$PROFILE"
+  grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$PROFILE" 2>/dev/null || printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$PROFILE"
+  export PATH="$BIN_DIR:$PATH"
+  echo "Added $BIN_DIR to PATH in $PROFILE"
 fi
 echo "Hermes Tensor Termux profile installed."
 echo "Run: tensor doctor"
