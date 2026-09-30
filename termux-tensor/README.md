@@ -14,6 +14,8 @@ Android / Google Tensor → Termux (aarch64) → Hermes Agent → local inferenc
     tensor status
 
 ## Model management
+    tensor model download <https-url> [sha256]
+    tensor model scan
     tensor model import ~/storage/downloads/model.litertlm
     tensor model list
     tensor model check model
