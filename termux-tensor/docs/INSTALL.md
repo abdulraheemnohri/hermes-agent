@@ -153,6 +153,14 @@ Benchmark:
 
 ```bash
 tensor lm benchmark
+
+Save a device profile after a validated run:
+
+```bash
+tensor profile save q4-baseline
+tensor profile status
+tensor profile recommend
+```
 ```
 
 Run direct LiteRT-LM successfully before connecting Hermes.

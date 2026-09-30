@@ -9,7 +9,7 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 check_model(){ local f="${1:-$DEFAULT_MODEL}"; [ -f "$f" ] || die "Model not found: $f"; case "$f" in *.litertlm) ;; *) die "LiteRT-LM requires a .litertlm model";; esac; }
 case "${1:-status}" in
  run) [ -n "$BIN" ] || die "LiteRT-LM native binary not found"; MODEL_FILE="${2:-$DEFAULT_MODEL}"; check_model "$MODEL_FILE"; exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" ${TENSOR_LITERT_ARGS:-} ;;
- benchmark) [ -n "$BIN" ] || die "LiteRT-LM native binary not found"; MODEL_FILE="${2:-$DEFAULT_MODEL}"; check_model "$MODEL_FILE"; exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" --benchmark --enable_profiling --benchmark_prefill_tokens=1024 --benchmark_decode_tokens=256 --async=false ;;
+ benchmark) [ -n "$BIN" ] || die "LiteRT-LM native binary not found"; MODEL_FILE="${2:-$DEFAULT_MODEL}"; check_model "$MODEL_FILE"; exec "$BIN" --backend=cpu --model_path="$MODEL_FILE" --benchmark --enable_profiling --benchmark_prefill_tokens="$TENSOR_BENCHMARK_PREFILL_TOKENS" --benchmark_decode_tokens="$TENSOR_BENCHMARK_DECODE_TOKENS" --async=false ;;
  status) echo "LiteRT binary: ${BIN:-not-found}"; echo "Model: ${DEFAULT_MODEL:-none}"; [ -n "$BIN" ] && "$BIN" --help >/dev/null 2>&1 && echo "CLI: available" || true ;;
  *) echo "Usage: tensor lm run [model]|benchmark [model]|status"; exit 2;;
 esac
