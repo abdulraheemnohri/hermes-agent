@@ -21,8 +21,8 @@ regression(){ [ -f "$HISTORY" ] || { echo "No benchmark history"; exit 1; }; ech
 case "${1:-status}" in
  status) echo "Benchmark history: $HISTORY"; [ -f "$HISTORY" ] && { echo "Runs: $(($(wc -l < "$HISTORY")-1))"; tail -n 10 "$HISTORY"; } || echo "No benchmark history";;
  record) record "$@";;
- parse) parse "$@";;
+ run)\n model="${2:-$(model_path)}"; [ -f "$model" ] || { echo "ERROR: model not found: $model" >&2; exit 2; };\n bin="${TENSOR_LITERT_BIN:-$(command -v litert_lm_main 2>/dev/null || true)}"; [ -n "$bin" ] || { echo "ERROR: LiteRT-LM native binary not found" >&2; exit 1; };\n out="$HISTORY_DIR/run-$(run_id).log"; echo "Running LiteRT-LM benchmark..."; "$bin" --backend=cpu --model_path="$model" --benchmark --enable_profiling --benchmark_prefill_tokens="${TENSOR_BENCHMARK_PREFILL_TOKENS:-1024}" --benchmark_decode_tokens="${TENSOR_BENCHMARK_DECODE_TOKENS:-256}" --async=false >"$out" 2>&1; rc=$?; echo "Benchmark exit status: $rc"; if [ "$rc" -eq 0 ]; then parse "$out" "$model"; else echo "Benchmark output: $out"; tail -n 30 "$out"; exit "$rc"; fi;;\n parse) parse "$@";;
  compare) compare;;
  regression) regression;;
- *) echo "Usage: tensor benchmark status|record <model> <summary>|parse <output-file> [model]|compare|regression"; exit 2;;
+ *) echo "Usage: tensor benchmark status|run [model]|record <model> <summary>|parse <output-file> [model]|compare|regression"; exit 2;;
 esac
